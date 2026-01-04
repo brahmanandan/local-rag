@@ -1,0 +1,74 @@
+# config.yaml
+DATA_DIR: "./rag-data/AI-Books/data"
+INDEX_DIR: "./rag-data/AI-Books/index"
+
+# Supported Providers and their API Key Environment Variables:
+# - OpenAI: OPENAI_API_KEY (set in .env file or export as environment variable)
+# - Perplexity: PERPLEXITY_API_KEY (set in .env file or export as environment variable)
+# - Google Gemini: GOOGLE_API_KEY (set in .env file or export as environment variable)
+# - HuggingFace: HUGGINGFACE_API_KEY (optional for some models)
+# - Local Models: No API key required (HuggingFace models run locally)
+#
+# NOTE: API keys should NOT be stored in this file!
+# Create a .env file in the project root with your API keys:
+# OPENAI_API_KEY=your-key-here
+# PERPLEXITY_API_KEY=your-key-here
+# GOOGLE_API_KEY=your-key-here
+
+# Embedding Model Priority (order matters - tried from top to bottom)
+EMBEDDINGS_PRIORITY:
+  - huggingface_bge # HuggingFace BAAI/bge-small-en-v1.5 (high quality)
+  - huggingface     # HuggingFace sentence-transformers/all-MiniLM-L6-v2 (fallback)
+  - openai          # OpenAI text-embedding-ada-002
+  - perplexity      # Perplexity built-in embeddings
+  - google          # Google Gemini embedding-001
+
+
+# LLM Model Priority (order matters - tried from top to bottom)
+LLM_PRIORITY:
+  - ollama          # Ollama local models (llama2, mistral, llama3, phi3, gemma)
+  - llama_cpp       # llama.cpp GGUF models
+  - huggingface     # HuggingFace local models (phi-2, TinyLlama, etc.)
+  - openai          # OpenAI GPT-3.5-turbo or GPT-4
+  - perplexity      # Perplexity mistral-7b-instruct
+  - google          # Google Gemini (gemini-1.5-flash or gemini-1.5-pro)
+  
+# Model-specific configurations
+MODELS:
+  openai:
+    embedding_model: "text-embedding-ada-002"
+    llm_model: "gpt-3.5-turbo"
+    temperature: 0.2
+  
+  perplexity:
+    llm_model: "mistral-7b-instruct"
+    temperature: 0.2
+  
+  google:
+    embedding_model: "models/embedding-001"
+    llm_model: "gemini-1.5-flash"  # Updated from deprecated gemini-pro
+    temperature: 0.2
+  
+  ollama:
+    models: ["llama2", "mistral", "llama3", "phi3", "gemma"]  # Tried in order
+    temperature: 0.2
+  
+  llama_cpp:
+    model_paths:  # Tried in order
+      - "~/.cache/llama-cpp/llama-2-7b-chat.gguf"
+      - "~/.cache/llama-cpp/mistral-7b-instruct-v0.1.gguf"
+      - "~/.cache/llama-cpp/phi-3-mini-4k-instruct.gguf"
+    n_ctx: 2048
+    temperature: 0.2
+  
+  huggingface:
+    embedding_models:  # Tried in order
+      - "BAAI/bge-small-en-v1.5"
+      - "sentence-transformers/all-MiniLM-L6-v2"
+    llm_models:  # Tried in order (phi-2 removed due to tensor issues)
+      - "TinyLlama/TinyLlama-1.1B-Chat-v1.0"  # Best for RAG, chat-optimized
+      - "microsoft/DialoGPT-medium"  # Good for conversations
+      - "gpt2"  # Reliable fallback
+      - "distilgpt2"  # Smallest fallback
+    max_length: 2048  # Maximum sequence length
+    temperature: 0.2

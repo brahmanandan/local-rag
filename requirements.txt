@@ -1,0 +1,28 @@
+langchain
+langchain-community
+langchain-openai
+langchain-perplexity
+langchain-google-genai
+langchain-huggingface
+langchain-core
+langchain-text-splitters
+langchain-ollama
+streamlit
+python-dotenv
+faiss-cpu
+PyMuPDF
+python-pptx
+python-docx
+unstructured
+tiktoken
+beautifulsoup4
+youtube-transcript-api
+pyyaml
+sentence-transformers
+transformers
+accelerate
+torch
+markdown
+# Optional: For local LLMs on macOS
+# llama-cpp-python  # Uncomment if using llama.cpp models
+# ollama  # Install separately: https://ollama.ai
