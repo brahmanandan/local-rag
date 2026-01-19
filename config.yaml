@@ -1,6 +1,6 @@
 # config.yaml
-DATA_DIR: "./rag-data/AI-Books/data"
-INDEX_DIR: "./rag-data/AI-Books/index"
+DATA_DIR: "./rag-data/test/data"
+INDEX_DIR: "./rag-data/test/index"
 
 # Supported Providers and their API Key Environment Variables:
 # - OpenAI: OPENAI_API_KEY (set in .env file or export as environment variable)
@@ -50,8 +50,14 @@ MODELS:
     temperature: 0.2
   
   ollama:
-    models: ["llama2", "mistral", "llama3", "phi3", "gemma"]  # Tried in order
+    models: 
+      - "DeepSeek-R1:14b"     # Primary: Advanced reasoning model
+      - "qwen2.5-coder:14b"   # Fallback: Code-focused model
+      - "qwen2.5-coder:7b"    # Fallback: Smaller coder model
+      - "llama2"              # Fallback: Legacy
+      - "mistral"             # Fallback: Legacy
     temperature: 0.2
+    timeout: 60  # Seconds to wait for Ollama responses
   
   llama_cpp:
     model_paths:  # Tried in order

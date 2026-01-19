@@ -10,13 +10,12 @@ langchain-ollama
 streamlit
 python-dotenv
 faiss-cpu
-PyMuPDF
-python-pptx
-python-docx
+docling
+docling-core
+pypdf
 unstructured
 tiktoken
 beautifulsoup4
-youtube-transcript-api
 pyyaml
 sentence-transformers
 transformers

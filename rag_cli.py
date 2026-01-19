@@ -40,13 +40,17 @@ def load_chain():
         if not hasattr(st.session_state, 'vectorstore'):
             st.session_state.vectorstore = vectorstore
         
-        # Use modern LangChain API - try new API first, fallback to old if needed
+        # Store retriever in session
+        if not hasattr(st.session_state, 'retriever'):
+            st.session_state.retriever = retriever
+        
+        # Use modern LangChain API - build chain with available components
         try:
-            from langchain.chains import create_retrieval_chain
-            from langchain.chains.combine_documents import create_stuff_documents_chain
             from langchain_core.prompts import ChatPromptTemplate
+            from langchain_core.output_parsers import StrOutputParser
+            from langchain_core.runnables import RunnablePassthrough, RunnableLambda
             
-            # Create prompt template (simplified for compatibility)
+            # Create prompt template
             prompt = ChatPromptTemplate.from_template(
                 "You are a helpful assistant that answers questions based on the provided context.\n\n"
                 "Context: {context}\n\n"
@@ -54,33 +58,37 @@ def load_chain():
                 "Answer based on the context above. If the context doesn't contain the answer, say so."
             )
             
-            # Create document chain
-            document_chain = create_stuff_documents_chain(llm, prompt)
+            # Format documents helper
+            def format_docs(docs):
+                return "\n\n".join(doc.page_content for doc in docs)
             
-            # Create retrieval chain
-            chain = create_retrieval_chain(retriever, document_chain)
+            # Extract just the input string from the dict
+            def get_input(x):
+                return x["input"] if isinstance(x, dict) else x
             
-            logger.info("Successfully loaded RAG chain with modern API")
-            return chain, "modern"
-        except (ImportError, AttributeError) as e:
-            logger.warning(f"Modern API not available: {e}")
-            # Fallback to ConversationalRetrievalChain for older LangChain versions
-            try:
-                from langchain.chains import ConversationalRetrievalChain
-                chain = ConversationalRetrievalChain.from_llm(
-                    llm, retriever, return_source_documents=True)
-                logger.info("Successfully loaded RAG chain with legacy API")
-                return chain, "legacy"
-            except Exception as e:
-                logger.error(f"Failed to load chain with legacy API: {e}")
-                raise
+            # Build chain manually with available components
+            chain = (
+                {
+                    "context": RunnableLambda(get_input) | retriever | RunnableLambda(format_docs),
+                    "input": RunnableLambda(get_input)
+                }
+                | prompt
+                | llm
+                | StrOutputParser()
+            )
+            
+            logger.info("Successfully loaded RAG chain with core API")
+            return chain
+        except Exception as e:
+            logger.error(f"Failed to load chain: {e}")
+            raise
     except Exception as e:
         st.error(f"Failed to load the RAG chain: {e}")
         st.info("Please check your API keys and ensure the index has been created.")
         st.info("Supported providers: OpenAI, Perplexity, Google Gemini, Ollama, llama.cpp, HuggingFace")
-        return None, None
+        return None
 
-chain, chain_type = load_chain()
+chain = load_chain()
 
 st.title("📚 RAG Course Chatbot")
 
@@ -101,63 +109,27 @@ question = st.text_input("Ask something from your course content:", "")
 if question:
     with st.spinner("Thinking..."):
         try:
-            if chain_type == "modern":
-                # Modern API format
-                result = chain.invoke({"input": question})
-                
-                answer = result.get("answer", "")
-                # In modern API, documents are retrieved separately
-                # The retrieval chain returns documents in the result
-                source_docs = []
-                
-                # Check various possible keys for documents
-                for key in ["documents", "context", "retrieved_documents"]:
-                    if key in result:
-                        docs = result[key]
-                        if isinstance(docs, list):
-                            source_docs = docs
-                            break
-                        elif hasattr(docs, "__iter__") and not isinstance(docs, str):
-                            source_docs = list(docs)
-                            break
-                
-                # If still no docs, try to get from retriever directly
-                if not source_docs:
-                    try:
-                        if hasattr(st.session_state, 'vectorstore'):
-                            retriever = st.session_state.vectorstore.as_retriever(
-                                search_type="similarity", search_kwargs={"k": 5}
-                            )
-                            source_docs = retriever.get_relevant_documents(question)
-                    except Exception as e:
-                        logger.warning(f"Could not retrieve source documents: {e}")
-                
-                # Update history
-                st.session_state["history"].append((question, answer))
-                
-                st.write("**Answer:**")
-                st.write(answer)
-                
-                with st.expander("Source Documents"):
-                    if source_docs:
-                        for doc in source_docs:
-                            if hasattr(doc, 'metadata') and hasattr(doc, 'page_content'):
-                                st.write(f"- **{doc.metadata.get('source', 'Unknown')}**: {doc.page_content[:500]}...")
-                            else:
-                                st.write(f"- {str(doc)[:500]}...")
-                    else:
-                        st.write("No source documents available.")
-            else:
-                # Legacy API format
-                result = chain.invoke({"question": question, "chat_history": st.session_state["history"]})
-                st.session_state["history"].append((question, result["answer"]))
-
-                st.write("**Answer:**")
-                st.write(result["answer"])
-
-                with st.expander("Source Documents"):
-                    for doc in result.get("source_documents", []):
-                        st.write(f"- **{doc.metadata.get('source', 'Unknown')}**: {doc.page_content[:500]}...")
+            # Query the chain
+            answer = chain.invoke({"input": question})
+            
+            # Get source documents from retriever using invoke instead of get_relevant_documents
+            source_docs = st.session_state.retriever.invoke(question)
+            
+            # Update history
+            st.session_state["history"].append((question, answer))
+            
+            st.write("**Answer:**")
+            st.write(answer)
+            
+            with st.expander("Source Documents"):
+                if source_docs:
+                    for doc in source_docs:
+                        if hasattr(doc, 'metadata') and hasattr(doc, 'page_content'):
+                            st.write(f"- **{doc.metadata.get('source', 'Unknown')}**: {doc.page_content[:500]}...")
+                        else:
+                            st.write(f"- {str(doc)[:500]}...")
+                else:
+                    st.write("No source documents available.")
         except Exception as e:
             st.error(f"Error processing your question: {e}")
             logger.exception("Error in chain invocation")
