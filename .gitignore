@@ -34,6 +34,7 @@ ENV/
 
 # Environment
 .env
+.env-bak
 .env.local
 
 # Data
