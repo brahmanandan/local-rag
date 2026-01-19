@@ -3,3 +3,4 @@ __pycache__
 .env
 rag-data
 venv
+.venv

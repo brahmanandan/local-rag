@@ -33,7 +33,7 @@ EMBEDDINGS_PRIORITY:
   - huggingface              # sentence-transformers/all-MiniLM-L6-v2
   - openai                   # text-embedding-ada-002
   - perplexity               # Perplexity embeddings
-  - google                   # Gemini embedding-001
+  - google                   # Gemini text-embedding-004 (modern)
 ```
 
 ### LLM Configuration

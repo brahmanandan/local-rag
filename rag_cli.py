@@ -6,10 +6,12 @@ import streamlit as st
 import yaml
 import logging
 from dotenv import load_dotenv
+
+# Load environment variables before importing local modules that may read them
+load_dotenv()
+
 from langchain_community.vectorstores import FAISS
 from utils import get_embeddings_model, get_llm_model
-
-load_dotenv()
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

@@ -18,6 +18,8 @@ except ImportError:
     from langchain.schema import Document
 
 import logging
+load_dotenv()
+
 from utils import get_embeddings_model
 
 # Docling imports for comprehensive document support
@@ -29,8 +31,6 @@ except ImportError:
     DOCLING_AVAILABLE = False
     logger = logging.getLogger(__name__)
     logger.warning("Docling not installed. Install it with: pip install docling")
-
-load_dotenv()
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

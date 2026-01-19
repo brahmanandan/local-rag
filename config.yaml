@@ -1,6 +1,6 @@
 # config.yaml
-DATA_DIR: "./rag-data/test/data"
-INDEX_DIR: "./rag-data/test/index"
+DATA_DIR: "./rag-data/mesh/data"
+INDEX_DIR: "./rag-data/mesh/index"
 
 # Supported Providers and their API Key Environment Variables:
 # - OpenAI: OPENAI_API_KEY (set in .env file or export as environment variable)
@@ -25,13 +25,15 @@ EMBEDDINGS_PRIORITY:
 
 
 # LLM Model Priority (order matters - tried from top to bottom)
+# NOTE: Google (gemini-1.5-*) models currently have SDK compatibility issues.
+# Use local Ollama/llama_cpp/HuggingFace instead, or upgrade langchain-google-genai.
 LLM_PRIORITY:
   - ollama          # Ollama local models (llama2, mistral, llama3, phi3, gemma)
   - llama_cpp       # llama.cpp GGUF models
   - huggingface     # HuggingFace local models (phi-2, TinyLlama, etc.)
   - openai          # OpenAI GPT-3.5-turbo or GPT-4
   - perplexity      # Perplexity mistral-7b-instruct
-  - google          # Google Gemini (gemini-1.5-flash or gemini-1.5-pro)
+  # - google          # (Disabled: SDK routing v1beta endpoint causes 404s for gemini-1.5-*)
   
 # Model-specific configurations
 MODELS:
@@ -45,8 +47,8 @@ MODELS:
     temperature: 0.2
   
   google:
-    embedding_model: "models/embedding-001"
-    llm_model: "gemini-1.5-flash"  # Updated from deprecated gemini-pro
+    embedding_model: "models/text-embedding-004"  # Prefer modern embedding model
+    llm_model: "gemini-1.5-flash"  # Fallbacks handled in code if unavailable
     temperature: 0.2
   
   ollama:

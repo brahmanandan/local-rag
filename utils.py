@@ -10,6 +10,10 @@ import platform
 import warnings
 from typing import Optional, Any, List
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables as early as possible
+load_dotenv()
 
 # Set USER_AGENT environment variable early to avoid warnings
 os.environ['USER_AGENT'] = os.getenv("USER_AGENT", "rag-chatbot/1.0")
@@ -21,6 +25,10 @@ warnings.filterwarnings("ignore", message=".*Token indices sequence length.*")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 logger = logging.getLogger(__name__)
+
+# Quiet down overly chatty HTTP client logs (avoid surfacing provider 401/404 as INFO)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 def load_config(config_path='config.yaml'):
     """Load configuration from YAML file."""
@@ -78,11 +86,38 @@ def get_embeddings_model():
                 return embeddings
             elif provider == "google":
                 from langchain_google_genai import GoogleGenerativeAIEmbeddings
-                model_name = model_config.get("google", {}).get("embedding_model", "models/embedding-001")
-                embeddings = GoogleGenerativeAIEmbeddings(model=model_name)
-                test_embedding = embeddings.embed_query("test")
-                logger.info(f"Successfully loaded Google Gemini embeddings ({model_name})")
-                return embeddings
+                # Prefer modern embedding model; fall back to legacy if needed
+                google_cfg = model_config.get("google", {})
+                candidate_models: List[str] = []
+                # Config-provided model first
+                if google_cfg.get("embedding_model"):
+                    candidate_models.append(google_cfg["embedding_model"])
+                # Modern default, then legacy
+                candidate_models.extend([
+                    "models/text-embedding-004",
+                    "text-embedding-004",
+                    "models/embedding-001",
+                    "embedding-001",
+                ])
+
+                last_err: Optional[Exception] = None
+                for model_name in candidate_models:
+                    try:
+                        api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+                        if not api_key:
+                            raise ImportError("Missing GOOGLE_API_KEY/GEMINI_API_KEY")
+                        embeddings = GoogleGenerativeAIEmbeddings(
+                            model=model_name,
+                            api_key=api_key,
+                        )
+                        _ = embeddings.embed_query("test")
+                        logger.info(f"Successfully loaded Google Gemini embeddings ({model_name})")
+                        return embeddings
+                    except Exception as ge:
+                        last_err = ge
+                        continue
+                if last_err:
+                    raise last_err
             elif provider == "huggingface_bge":
                 from langchain_huggingface import HuggingFaceEmbeddings
                 embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5")
@@ -127,11 +162,14 @@ def get_llm_model():
             if provider == "openai":
                 from langchain_openai import ChatOpenAI
                 config = model_config.get("openai", {})
+                if not os.getenv("OPENAI_API_KEY"):
+                    logger.debug("OPENAI_API_KEY not set; skipping OpenAI provider")
+                    raise ImportError("Missing OPENAI_API_KEY")
                 llm = ChatOpenAI(
                     temperature=config.get("temperature", 0.2),
-                    model_name=config.get("llm_model", "gpt-3.5-turbo")
+                    model=config.get("llm_model", "gpt-3.5-turbo"),
                 )
-                test_response = llm.invoke("test")
+                _ = llm.invoke("test")
                 logger.info(f"Successfully loaded OpenAI LLM ({config.get('llm_model', 'gpt-3.5-turbo')})")
                 return llm
             elif provider == "perplexity":
@@ -147,15 +185,44 @@ def get_llm_model():
             elif provider == "google":
                 from langchain_google_genai import ChatGoogleGenerativeAI
                 config = model_config.get("google", {})
-                # Use gemini-1.5-flash instead of deprecated gemini-pro
-                model_name = config.get("llm_model", "gemini-1.5-flash")
-                llm = ChatGoogleGenerativeAI(
-                    model=model_name,
-                    temperature=config.get("temperature", 0.2)
-                )
-                test_response = llm.invoke("test")
-                logger.info(f"Successfully loaded Google Gemini LLM ({model_name})")
-                return llm
+                api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+                if not api_key:
+                    logger.debug("GOOGLE_API_KEY/GEMINI_API_KEY not set; skipping Google provider")
+                    raise ImportError("Missing GOOGLE_API_KEY/GEMINI_API_KEY")
+
+                # Try multiple model IDs to avoid 404 due to library/version diffs
+                user_model = config.get("llm_model")
+                candidate_models: List[str] = []
+                if user_model:
+                    candidate_models.append(user_model)
+                candidate_models.extend([
+                    "gemini-1.5-flash",
+                    "gemini-1.5-flash-8b",
+                    "gemini-1.5-pro",
+                    "gemini-pro",
+                    # Prefixed variants some SDKs expect
+                    "models/gemini-1.5-flash",
+                    "models/gemini-1.5-flash-8b",
+                    "models/gemini-1.5-pro",
+                    "models/gemini-pro",
+                ])
+
+                last_err: Optional[Exception] = None
+                for model_name in candidate_models:
+                    try:
+                        llm = ChatGoogleGenerativeAI(
+                            model=model_name,
+                            temperature=config.get("temperature", 0.2),
+                            api_key=api_key,
+                        )
+                        _ = llm.invoke("test")
+                        logger.info(f"Successfully loaded Google Gemini LLM ({model_name})")
+                        return llm
+                    except Exception as ge:
+                        last_err = ge
+                        continue
+                if last_err:
+                    raise last_err
             elif provider == "ollama":
                 # Try new langchain-ollama first, fallback to deprecated version
                 try:
