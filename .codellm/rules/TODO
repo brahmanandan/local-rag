@@ -1,0 +1,155 @@
+GAPS IDENTIFIED
+1. Architecture & Structure
+No proper project structure (missing src/ or modular organization)
+No separation of concerns (agent, ingestion, API layers mixed)
+Missing Pydantic AI agent implementation
+No FastAPI API layer with SSE streaming
+No proper module organization following reference implementation
+2. Database & Storage
+Using FAISS instead of PostgreSQL + pgvector (requirement)
+No PostgreSQL connection/pool management
+No Neo4j/Graphiti integration for knowledge graph
+Missing SQLite/DuckDB for metadata tracking
+No file hash tracking or change detection
+3. Filesystem & Ingestion
+No recursive filesystem traversal with metadata tracking
+Missing file change detection (watchdog)
+No MIME type detection (filetype)
+Missing video/audio processing (keyframes, transcription)
+No incremental update support
+Missing batch processing capabilities
+4. Knowledge Graph & Mind Map
+No Graphiti/Neo4j knowledge graph implementation
+Missing entity/relationship extraction
+No concept clustering
+Missing mind map export (Mermaid/Graphviz/JSON)
+No temporal graph capabilities
+5. Agent & Reasoning
+No Pydantic AI agent with tools
+Missing hybrid retrieval (vector + graph)
+No tool usage logging
+Missing context selection mechanism
+No source-aware citations in outputs
+6. Provider & Fallback Logic
+Limited provider fallback (only embeddings, not comprehensive)
+No local-first with deterministic external fallback
+Missing Ollama local model support
+No OpenRouter/RouteLLM integration
+Missing offline mode handling
+7. Configuration & Environment
+No .env file structure (using config.yaml only)
+Missing comprehensive environment variables (DATABASE_URL, NEO4J_*, etc.)
+No provider configuration flexibility
+Missing timeout/retry configurations
+8. Testing & Quality
+No unit tests
+No integration tests
+Missing error recovery mechanisms
+No health checks
+Limited logging/monitoring
+9. CLI & API
+Basic Streamlit UI instead of proper CLI
+No FastAPI endpoints
+Missing SSE streaming responses
+No interactive CLI with tool visibility
+10. Dependencies
+Missing: pydantic-ai, fastapi, uvicorn, asyncpg, psycopg2-binary, graphiti-core, neo4j, watchdog, filetype, sse-starlette
+Using LangChain (not in requirements) instead of Pydantic AI
+
+
+ACTION ITEMS
+Phase 1: Foundation & Structure
+Create proper project structure with src/ directory
+Set up modules: agent/, ingestion/, api/, storage/, utils/
+Create .env.example with all required variables
+Update requirements.txt with missing dependencies
+Create pyproject.toml for proper package management
+Phase 2: Database & Storage Layer
+Implement PostgreSQL + pgvector connection pool
+Create database schema for chunks, embeddings, metadata
+Set up Neo4j connection for Graphiti
+Implement SQLite/DuckDB for local file metadata
+Add file hash tracking and change detection tables
+
+
+Phase 3: Filesystem & Metadata
+Implement recursive filesystem traversal with pathlib
+Add MIME type detection with filetype library
+Create metadata extraction and storage
+Implement watchdog for file change monitoring
+Add incremental update logic
+Phase 4: Ingestion Pipeline
+Refactor Docling integration into modular chunker
+Implement video keyframe extraction
+Add audio transcription support
+Create embedder with local/external fallback
+Build batch processing with error recovery
+Phase 5: Knowledge Graph
+Integrate Graphiti client with custom OpenAI-compatible providers
+Implement entity/relationship extraction
+Create graph builder for document chunks
+Add temporal graph capabilities
+Implement concept clustering
+Phase 6: Agent Layer
+Create Pydantic AI agent with system prompts
+Implement vector_search tool
+Implement graph_search tool
+Implement hybrid_search tool
+Add document retrieval tools
+Create tool usage logging
+Phase 7: API Layer
+Set up FastAPI application
+Implement SSE streaming endpoints
+Add health check endpoints
+Create context selection API
+Add reasoning/query endpoints
+Phase 8: Mind Map & Export
+Implement Mermaid export from graph
+Add Graphviz export support
+Create JSON export for UI consumption
+Build interactive mind map API
+Phase 9: Provider & Fallback
+Implement comprehensive provider abstraction
+Add Ollama local model support
+Integrate OpenRouter/RouteLLM
+Create deterministic fallback chain
+Add offline mode detection and handling
+Phase 10: CLI & Interface
+Build interactive CLI with rich/typer
+Add streaming response display
+Show tool usage in CLI
+Create context selection interface
+Add configuration management commands
+Phase 11: Testing & Quality
+Write unit tests for all modules
+Create integration tests for pipeline
+Add end-to-end tests
+Implement comprehensive error handling
+Add retry mechanisms with tenacity
+Phase 12: Documentation & Polish
+Update README.md with new architecture
+Create API documentation
+Add usage examples
+Document configuration options
+Create deployment guide
+PRIORITY ORDER
+Critical (Do First):
+
+Items 1-5: Project structure
+Items 6-10: Database layer
+Items 16-20: Core ingestion
+Items 26-31: Agent foundation
+High Priority:
+
+Items 11-15: Filesystem tracking
+Items 21-25: Knowledge graph
+Items 32-36: API layer
+Items 41-45: Provider fallback
+Medium Priority:
+
+Items 37-40: Mind map export
+Items 46-50: CLI interface
+Items 51-55: Testing
+Low Priority:
+
+Items 56-60: Documentation

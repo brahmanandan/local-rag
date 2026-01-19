@@ -48,8 +48,8 @@ def load_config(config_path='config.yaml'):
 _config = load_config()
 
 # Default priorities if not in config
-DEFAULT_EMBEDDINGS_PRIORITY = ["openai", "perplexity", "google", "huggingface_bge", "huggingface"]
-DEFAULT_LLM_PRIORITY = ["openai", "perplexity", "google", "ollama", "llama_cpp", "huggingface"]
+DEFAULT_EMBEDDINGS_PRIORITY = ["openai", "openrouter", "chatllm", "perplexity", "google", "huggingface_bge", "huggingface"]
+DEFAULT_LLM_PRIORITY = ["openai", "openrouter", "chatllm", "perplexity", "google", "ollama", "llama_cpp", "huggingface"]
 
 def detect_device():
     """Detect the best device for model inference."""
@@ -68,7 +68,7 @@ def get_embeddings_model():
     """Get embeddings model based on config.yaml priority."""
     priority = _config.get("EMBEDDINGS_PRIORITY", DEFAULT_EMBEDDINGS_PRIORITY)
     model_config = _config.get("MODELS", {})
-    
+
     for provider in priority:
         try:
             if provider == "openai":
@@ -77,6 +77,32 @@ def get_embeddings_model():
                 embeddings = OpenAIEmbeddings(model=model_name)
                 test_embedding = embeddings.embed_query("test")
                 logger.info(f"Successfully loaded OpenAI embeddings ({model_name})")
+                return embeddings
+            elif provider == "openrouter":
+                from langchain_openai import OpenAIEmbeddings
+                cfg = model_config.get("openrouter", {})
+                api_key = os.getenv("OPENROUTER_API_KEY")
+                if not api_key:
+                    logger.debug("OPENROUTER_API_KEY not set; skipping OpenRouter provider")
+                    raise ImportError("Missing OPENROUTER_API_KEY")
+                base_url = cfg.get("base_url") or os.getenv("OPENROUTER_BASE_URL") or "https://openrouter.ai/api/v1"
+                model_name = cfg.get("embedding_model", "text-embedding-3-small")
+                embeddings = OpenAIEmbeddings(model=model_name, api_key=api_key, base_url=base_url)
+                _ = embeddings.embed_query("test")
+                logger.info(f"Successfully loaded OpenRouter embeddings ({model_name})")
+                return embeddings
+            elif provider == "chatllm":
+                from langchain_openai import OpenAIEmbeddings
+                cfg = model_config.get("chatllm", {})
+                api_key = os.getenv("CHATLLM_API_KEY")
+                if not api_key:
+                    logger.debug("CHATLLM_API_KEY not set; skipping ChatLLM provider")
+                    raise ImportError("Missing CHATLLM_API_KEY")
+                base_url = cfg.get("base_url") or os.getenv("CHATLLM_BASE_URL") or "https://api.chatllm.ai/v1"
+                model_name = cfg.get("embedding_model", "text-embedding-3-small")
+                embeddings = OpenAIEmbeddings(model=model_name, api_key=api_key, base_url=base_url)
+                _ = embeddings.embed_query("test")
+                logger.info(f"Successfully loaded ChatLLM embeddings ({model_name})")
                 return embeddings
             elif provider == "perplexity":
                 from langchain_perplexity import PerplexityEmbeddings
@@ -172,6 +198,40 @@ def get_llm_model():
                 _ = llm.invoke("test")
                 logger.info(f"Successfully loaded OpenAI LLM ({config.get('llm_model', 'gpt-3.5-turbo')})")
                 return llm
+            elif provider == "openrouter":
+                from langchain_openai import ChatOpenAI
+                config = model_config.get("openrouter", {})
+                api_key = os.getenv("OPENROUTER_API_KEY")
+                if not api_key:
+                    logger.debug("OPENROUTER_API_KEY not set; skipping OpenRouter provider")
+                    raise ImportError("Missing OPENROUTER_API_KEY")
+                base_url = config.get("base_url") or os.getenv("OPENROUTER_BASE_URL") or "https://openrouter.ai/api/v1"
+                llm = ChatOpenAI(
+                    temperature=config.get("temperature", 0.2),
+                    model=config.get("llm_model", "gpt-3.5-turbo"),
+                    api_key=api_key,
+                    base_url=base_url,
+                )
+                _ = llm.invoke("test")
+                logger.info(f"Successfully loaded OpenRouter LLM ({config.get('llm_model', 'gpt-3.5-turbo')})")
+                return llm
+            elif provider == "chatllm":
+                from langchain_openai import ChatOpenAI
+                config = model_config.get("chatllm", {})
+                api_key = os.getenv("CHATLLM_API_KEY")
+                if not api_key:
+                    logger.debug("CHATLLM_API_KEY not set; skipping ChatLLM provider")
+                    raise ImportError("Missing CHATLLM_API_KEY")
+                base_url = config.get("base_url") or os.getenv("CHATLLM_BASE_URL") or "https://api.chatllm.ai/v1"
+                llm = ChatOpenAI(
+                    temperature=config.get("temperature", 0.2),
+                    model=config.get("llm_model", "gpt-3.5-turbo"),
+                    api_key=api_key,
+                    base_url=base_url,
+                )
+                _ = llm.invoke("test")
+                logger.info(f"Successfully loaded ChatLLM LLM ({config.get('llm_model', 'gpt-3.5-turbo')})")
+                return llm
             elif provider == "perplexity":
                 from langchain_perplexity import PerplexityLLM
                 config = model_config.get("perplexity", {})
@@ -235,7 +295,7 @@ def get_llm_model():
                     except ImportError:
                         logger.debug("Ollama not available")
                         continue
-                
+
                 models = model_config.get("ollama", {}).get("models", ["llama2", "mistral", "llama3", "phi3", "gemma"])
                 config = model_config.get("ollama", {})
                 for model_name in models:
@@ -260,18 +320,18 @@ def get_llm_model():
                 except ImportError:
                     logger.debug("llama-cpp-python not available")
                     continue
-                
+
                 config = model_config.get("llama_cpp", {})
                 model_paths = config.get("model_paths", [
                     os.path.expanduser("~/.cache/llama-cpp/llama-2-7b-chat.gguf"),
                     os.path.expanduser("~/.cache/llama-cpp/mistral-7b-instruct-v0.1.gguf"),
                 ])
-                
+
                 # Check environment variable
                 custom_path = os.getenv("LLAMA_CPP_MODEL_PATH")
                 if custom_path:
                     model_paths.insert(0, custom_path)
-                
+
                 for model_path in model_paths:
                     if os.path.exists(model_path):
                         try:
@@ -293,10 +353,10 @@ def get_llm_model():
                 from langchain_huggingface import HuggingFacePipeline
                 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
                 import torch
-                
+
                 device = detect_device()
                 logger.debug(f"Using device: {device} for HuggingFace models")
-                
+
                 config = model_config.get("huggingface", {})
                 models = config.get("llm_models", [
                     "TinyLlama/TinyLlama-1.1B-Chat-v1.0",  # Best for RAG, chat-optimized
@@ -305,28 +365,28 @@ def get_llm_model():
                     "distilgpt2",  # Smallest fallback
                 ])
                 max_length = config.get("max_length", 2048)
-                
+
                 for model_name in models:
                     try:
                         logger.debug(f"Trying HuggingFace model: {model_name}")
                         tokenizer = AutoTokenizer.from_pretrained(model_name)
-                        
+
                         if tokenizer.pad_token is None:
                             tokenizer.pad_token = tokenizer.eos_token
-                        
+
                         model_kwargs = {}
                         if device == "mps":
                             model_kwargs["torch_dtype"] = torch.float16
-                        
+
                         model = AutoModelForCausalLM.from_pretrained(
                             model_name,
                             device_map="auto" if device != "mps" else None,
                             **model_kwargs
                         )
-                        
+
                         if device == "mps":
                             model = model.to(device)
-                        
+
                         pipe = pipeline(
                             "text-generation",
                             model=model,
@@ -338,7 +398,7 @@ def get_llm_model():
                             pad_token_id=tokenizer.pad_token_id,
                             device=0 if device == "cuda" else -1,
                         )
-                        
+
                         llm = HuggingFacePipeline(pipeline=pipe)
                         test_response = llm.invoke("test")
                         logger.info(f"Successfully loaded HuggingFace LLM: {model_name} on {device}")
@@ -374,6 +434,13 @@ def get_llm_model():
             else:
                 logger.warning(f"{provider} LLM failed: {e}")
             continue
+
+    raise Exception(
+        "All LLM providers failed. Please:\n"
+        "1. Check your API keys for cloud providers\n"
+        "2. Install Ollama and download a model: https://ollama.ai\n"
+        "3. Or ensure HuggingFace models can be downloaded"
+    )
     
     raise Exception(
         "All LLM providers failed. Please:\n"

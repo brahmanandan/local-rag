@@ -20,6 +20,8 @@ EMBEDDINGS_PRIORITY:
   - huggingface_bge # HuggingFace BAAI/bge-small-en-v1.5 (high quality)
   - huggingface     # HuggingFace sentence-transformers/all-MiniLM-L6-v2 (fallback)
   - openai          # OpenAI text-embedding-ada-002
+  - openrouter      # OpenRouter OpenAI-compatible embeddings
+  - chatllm         # ChatLLM OpenAI-compatible embeddings
   - perplexity      # Perplexity built-in embeddings
   - google          # Google Gemini embedding-001
 
@@ -32,27 +34,41 @@ LLM_PRIORITY:
   - llama_cpp       # llama.cpp GGUF models
   - huggingface     # HuggingFace local models (phi-2, TinyLlama, etc.)
   - openai          # OpenAI GPT-3.5-turbo or GPT-4
+  - openrouter      # OpenRouter OpenAI-compatible chat models
+  - chatllm         # ChatLLM OpenAI-compatible chat models
   - perplexity      # Perplexity mistral-7b-instruct
   # - google          # (Disabled: SDK routing v1beta endpoint causes 404s for gemini-1.5-*)
-  
+
 # Model-specific configurations
 MODELS:
   openai:
     embedding_model: "text-embedding-ada-002"
     llm_model: "gpt-3.5-turbo"
     temperature: 0.2
-  
+
+  openrouter:
+    base_url: "https://openrouter.ai/api/v1"
+    embedding_model: "text-embedding-3-small"
+    llm_model: "gpt-3.5-turbo"
+    temperature: 0.2
+
+  chatllm:
+    base_url: "https://api.chatllm.ai/v1"
+    embedding_model: "text-embedding-3-small"
+    llm_model: "gpt-3.5-turbo"
+    temperature: 0.2
+
   perplexity:
     llm_model: "mistral-7b-instruct"
     temperature: 0.2
-  
+
   google:
     embedding_model: "models/text-embedding-004"  # Prefer modern embedding model
     llm_model: "gemini-1.5-flash"  # Fallbacks handled in code if unavailable
     temperature: 0.2
-  
+
   ollama:
-    models: 
+    models:
       - "DeepSeek-R1:14b"     # Primary: Advanced reasoning model
       - "qwen2.5-coder:14b"   # Fallback: Code-focused model
       - "qwen2.5-coder:7b"    # Fallback: Smaller coder model
@@ -60,7 +76,7 @@ MODELS:
       - "mistral"             # Fallback: Legacy
     temperature: 0.2
     timeout: 60  # Seconds to wait for Ollama responses
-  
+
   llama_cpp:
     model_paths:  # Tried in order
       - "~/.cache/llama-cpp/llama-2-7b-chat.gguf"
@@ -68,7 +84,7 @@ MODELS:
       - "~/.cache/llama-cpp/phi-3-mini-4k-instruct.gguf"
     n_ctx: 2048
     temperature: 0.2
-  
+
   huggingface:
     embedding_models:  # Tried in order
       - "BAAI/bge-small-en-v1.5"
